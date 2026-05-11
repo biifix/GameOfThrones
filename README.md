@@ -1,4 +1,4 @@
-# Project Assignment 1: MineMaze
+# Project Assignment 2: Game Of Throne
 *The information below is not part of the submission but is encouraged to provide*
 
  ## Team Members
@@ -9,4 +9,3 @@
  ## Documentation files
 - Link to Draw.io 
 - Link to Google doc
-# Project1-Draft
