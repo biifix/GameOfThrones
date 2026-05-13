@@ -9,7 +9,7 @@ import java.util.Properties;
 import java.util.Random;
 
 public class Driver {
-    public static final String DEFAULT_PROPERTIES_PATH = "properties/game3.properties";
+    public static final String DEFAULT_PROPERTIES_PATH = "properties/game2.properties";
 
     /**
      * Starting point
