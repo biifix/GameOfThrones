@@ -31,3 +31,6 @@ dist/
 # Gradle
 .idea/**/gradle.xml
 .idea/**/libraries
+
+# Local contributor guide
+AGENTS.md

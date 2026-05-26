@@ -499,8 +499,75 @@ public class GameOfThrones extends CardGame {
 
     private int[] calculatePileRanks(int pileIndex) {
         Hand currentPile = piles[pileIndex];
-        int i = currentPile.isEmpty() ? 0 : ((Rank) currentPile.get(0).getRank()).getShortHandValue();
-        return new int[] { i, i };
+        if (currentPile.isEmpty()) {
+            return new int[] { 0, 0 };
+        }
+
+        List<Card> cards = currentPile.getCardList();
+        int attack = getCardRankValue(cards.get(0));
+        int defence = getCardRankValue(cards.get(0));
+
+        AffectedAttribute lastAffectAttribute = AffectedAttribute.NONE;
+
+        for (int i = 1; i < cards.size(); i++) {
+            Card currCard = cards.get(i);
+            Card prevCard = cards.get(i - 1);
+            Suit currSuit = (Suit) currCard.getSuit();
+            int effectValue = getCardRankValue(currCard);
+            if (getCardRankValue(currCard) == getCardRankValue(prevCard)) {
+                effectValue *= 2;
+            }
+            if (currSuit.isAttack()) {
+                attack += effectValue;
+                lastAffectAttribute = AffectedAttribute.ATTACK;
+            } else if (currSuit.isDefence()) {
+                defence += effectValue;
+                lastAffectAttribute = AffectedAttribute.DEFENCE;
+            } else if (currSuit.isMagic()) {
+                if (lastAffectAttribute == AffectedAttribute.ATTACK) {
+                    attack -= effectValue;
+                } else if (lastAffectAttribute == AffectedAttribute.DEFENCE) {
+                    defence -= effectValue;
+                }
+            }
+            attack = Math.max(attack, 0);
+            defence = Math.max(defence, 0);
+        }
+        return new int[] { attack, defence };
+    }
+
+    public int getCardRankValue(Card card) {
+        Rank rank = (Rank) card.getRank();
+        return rank.getScoreValue();
+    }
+
+    private boolean isLegalEffectPlay(Card card, int pileIndex) {
+        if (card == null) {
+            return false;
+        }
+        if (pileIndex < 0 || pileIndex >= piles.length) {
+            return false;
+        }
+        Suit suit = (Suit) card.getSuit();
+        if (suit.isCharacter()) {
+            return false;
+        }
+
+        Hand pile = piles[pileIndex];
+        if (pile.isEmpty()) {
+            return false;
+        }
+
+        List<Card> cardsInPile = pile.getCardList();
+        // for loop to go through pilecards, if no attack or defence card in pile, return false
+        for (int i = 0; i < cardsInPile.size(); i++) {
+            Card cardInPile = cardsInPile.get(i);
+            Suit suitInPile = (Suit) cardInPile.getSuit();
+            if (suitInPile.isAttack() || suitInPile.isDefence()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void updatePileRankState(int pileIndex, int attackRank, int defenceRank) {
@@ -629,11 +696,17 @@ public class GameOfThrones extends CardGame {
                     setStatusText("Pass.");
                 }
             }
+            
+            if (selected.isPresent() && isLegalEffectPlay(selected.get(), selectedPileIndex)) {
+                selected.get().setVerso(false);
+                selected.get().transfer(piles[selectedPileIndex], true);
 
-            selected.get().setVerso(false);
-            selected.get().transfer(piles[selectedPileIndex], true); // transfer to pile (includes graphic effect)
-            updatePileRanks();
-            logger.logPlayerMovement(nextPlayer, selected.get(), selectedPileIndex);
+                updatePileRanks();
+                logger.logPlayerMovement(nextPlayer, selected.get(), selectedPileIndex);
+            } else {
+                System.out.println("Player " + nextPlayer + " Pass.");
+                setStatusText("Pass.");
+            }
 
             nextPlayer = (nextPlayer + 1) % nbPlayers;
             remainingTurns--;
@@ -650,29 +723,38 @@ public class GameOfThrones extends CardGame {
         String character0Result;
         String character1Result;
 
+        int northCharacterScore = pileNorthCharacterRank.getScoreValue();
+        int southCharacterScore = pileSouthCharacterRank.getScoreValue();
+
         if (pileNorthRanks[ATTACK_RANK_INDEX] > pileSouthRanks[DEFENCE_RANK_INDEX]) {
-            scores[getPlayerIndex(nextStartingPlayer)] += pileSouthCharacterRank.getScoreValue();
-            scores[getPlayerIndex(nextStartingPlayer + 2)] += pileSouthCharacterRank.getScoreValue();
+            addScoreToNorth(southCharacterScore);
             character0Result = "Character 0 attack on character 1 succeeded.";
         } else {
-            scores[getPlayerIndex(nextStartingPlayer + 1)] += pileSouthCharacterRank.getScoreValue();
-            scores[getPlayerIndex(nextStartingPlayer + 3)] += pileSouthCharacterRank.getScoreValue();
+            addScoreToSouth(southCharacterScore);
             character0Result = "Character 0 attack on character 1 failed.";
         }
 
         if (pileSouthRanks[ATTACK_RANK_INDEX] > pileNorthRanks[DEFENCE_RANK_INDEX]) {
-            scores[getPlayerIndex(nextStartingPlayer + 1)] += pileNorthCharacterRank.getScoreValue();
-            scores[getPlayerIndex(nextStartingPlayer + 3)] += pileNorthCharacterRank.getScoreValue();
+            addScoreToSouth(northCharacterScore);
             character1Result = "Character 1 attack on character 0 succeeded.";
         } else {
-            scores[getPlayerIndex(nextStartingPlayer)] += pileNorthCharacterRank.getScoreValue();
-            scores[getPlayerIndex(nextStartingPlayer + 2)] += pileNorthCharacterRank.getScoreValue();
+            addScoreToNorth(northCharacterScore);
             character1Result = "Character 1 attack character 0 failed.";
         }
         updateScores();
         System.out.println(character0Result);
         System.out.println(character1Result);
         setStatusText(character0Result + " " + character1Result);
+    }
+
+    private void addScoreToNorth(int score) {
+        scores[0] += score;
+        scores[2] += score;
+    }
+
+    private void addScoreToSouth(int score) {
+        scores[1] += score;
+        scores[3] += score;
     }
 
     private void executeAPlay() {
