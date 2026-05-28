@@ -76,9 +76,15 @@ public class GameOfThrones extends CardGame {
                 return null; // Invalid input
             }
 
+            String type = playerTypeStr.trim();
+            if(type.contains("-")) {
+                String[] typeParts = type.split("-");
+                type = typeParts[0];
+            }
+
             try {
                 // Case-insensitive conversion
-                return PlayerType.valueOf(playerTypeStr.trim().toUpperCase());
+                return PlayerType.valueOf(type);
             } catch (IllegalArgumentException e) {
                 // No matching enum constant
                 return null;
@@ -116,6 +122,89 @@ public class GameOfThrones extends CardGame {
         return null;
     }
 
+    private Map<Integer, Consideration> playerConsiderations = new HashMap<>();
+    private ArrayList<Consideration> readPlayerConsiderations(Properties properties, int playeridx) {
+        ArrayList<Consideration> considerations = new ArrayList<>();
+        String playerConfig = properties.getProperty("players." + playeridx);
+
+        if (playerConfig == null || playerConfig.trim().isEmpty()) {
+            return considerations;
+            
+        }
+        //human
+        if (!playerConfig.contains("-")) {
+            return considerations;
+        }
+
+        String[] playerConfigParts = playerConfig.split("-");
+        String playerType = playerConfigParts[0].trim();
+        String considerationsString = playerConfigParts[1].trim();
+        if (considerationsString.isEmpty()) {
+            return considerations;
+        }
+
+        String[] considerationArray = considerationsString.split(",");
+        for (String consideration : considerationArray) {
+            Consideration c = Consideration.fromString(consideration);
+            if (c != null) {
+                considerations.add(c);
+            }
+        }
+        return considerations;
+        
+    }
+
+    private int getTeamPileIndex(int playerIndex) {
+        if (playerIndex == 0 || playerIndex == 2) {
+            return Pile.NORTH.ordinal();
+        } else {
+            return Pile.SOUTH.ordinal();
+        }
+    }
+
+    private boolean isAllyPile(int playerIndex, int pileIndex) {
+        return getTeamPileIndex(playerIndex) == pileIndex;
+    }
+
+    private Consideration getConsiderationType(int playerIndex, int pileIndex, Card card) {
+        if (card==null){
+            return null;
+        }
+
+        Suit suit = (Suit) card.getSuit();
+        if (suit.isCharacter()) {
+            return null;
+        }
+        boolean allyPile = isAllyPile(playerIndex, pileIndex);
+        if (allyPile) {
+            if (suit.isAttack()) {
+                return Consideration.TEAM_ATTACK;
+            }
+            if (suit.isDefence()) {
+                return Consideration.TEAM_DEFENCE;
+            }
+            if (suit.isMagic()) {
+                return Consideration.TEAM_MAGIC;
+            }
+        }
+        else {
+            if (suit.isAttack()) {
+                return Consideration.OPPONENT_ATTACK;
+            }
+            if (suit.isDefence()) {
+                return Consideration.OPPONENT_DEFENCE;
+            }
+            if (suit.isMagic()) {
+                return Consideration.OPPONENT_MAGIC;
+            }
+        }
+        return null;
+
+    }
+    
+    private boolean 
+    
+
     /**
      * Initialise object
      */
@@ -123,6 +212,9 @@ public class GameOfThrones extends CardGame {
         isAuto = Boolean.parseBoolean(properties.getProperty("isAuto"));
         for (int i = 0; i < nbPlayers; i++) {
             playerTypes[i] = PlayerType.fromStringToPlayerType(properties.getProperty("players." + i));
+
+            playerConsiderations.put(i, readPlayerConsiderations(properties, i));
+
             playerMovementIndexes.add(0);
         }
 

@@ -1,0 +1,22 @@
+Task 1
+=================
+
+Title: Task 1
+
+This file marks the current breakpoint for Task 1 and summarises the key implementation points completed from the initial baseline.
+
+Implemented key points:
+- Feature 1 work has been added in `app/src/main/java/thrones/game/GameOfThrones.java`.
+- `calculatePileRanks()` no longer uses only the opening heart rank; it now processes the full pile sequence.
+- Attack cards (`CLUBS`) increase attack, defence cards (`SPADES`) increase defence, and magic cards (`DIAMONDS`) reduce the last affected attribute.
+- Consecutive cards with the same rank apply a doubled effect.
+- Attack and defence values are clamped so they do not fall below zero.
+- `AffectedAttribute.java` was added to track whether the previous effect changed attack or defence.
+- `isLegalEffectPlay()` was introduced to block some illegal non-heart plays on piles that do not yet have a valid affected attribute context.
+- Score updates were refactored into `addScoreToNorth()` and `addScoreToSouth()` helper methods.
+- Test expectations in `app/src/test/java/GameTest.java` were updated to reflect the new pile value calculations.
+- Commit ID: f203b8f6c639c67716b77e505025577777a46814
+
+Current status:
+- Feature 1 is partially/mostly implemented in code and is the main completed extension so far.
+- Feature 2 and Feature 3 are not fully implemented yet; bot logic still needs further work to match the specification.
