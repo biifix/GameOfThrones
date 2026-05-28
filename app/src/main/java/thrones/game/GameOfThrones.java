@@ -202,7 +202,44 @@ public class GameOfThrones extends CardGame {
 
     }
     
-    private boolean 
+    private boolean evaluateBotPlay(int playerIndex, int pileIndex, Card card) {
+        if (!isLegalEffectPlay(card, pileIndex)) {
+            return false;
+        }
+        if (playerTypes[playerIndex]==PlayerType.HUMAN) {
+            return true;
+        }
+        ArrayList<Consideration> configuredConsiderations = playerConsiderations.get(playerIndex);
+        Consideration currConsideration;
+        if (configuredConsiderations.isEmpty()) {
+            // run through considerations and determine where player is and get index
+            // then get current consideration
+             currConsideration = configuredConsiderations.get(playerMovementIndexes.get(playerIndex));  
+        } else {
+            currConsideration = getConsiderationType(playerIndex, pileIndex, card);
+        }
+        if (currConsideration == null) {
+            return false;
+        }
+
+        // for each consideration type, check if it's good to play
+        switch (currConsideration) {
+            case TEAM_ATTACK:
+                return true;
+            case TEAM_DEFENCE:
+                return true;
+            case TEAM_MAGIC:
+                return false;
+            case OPPONENT_ATTACK:
+                return false;
+            case OPPONENT_DEFENCE:
+                return false;
+            case OPPONENT_MAGIC:
+                return true;
+            default:
+                return false;
+        }
+    }
     
 
     /**
@@ -788,8 +825,18 @@ public class GameOfThrones extends CardGame {
                     setStatusText("Pass.");
                 }
             }
+
+            // evaluate the play
+            boolean evaluatePlay = false;
+            if (selected.isPresent()) {
+                if (playerTypes[nextPlayer] == PlayerType.HUMAN) {
+                    evaluatePlay = isLegalEffectPlay(selected.get(), selectedPileIndex);
+                } else {
+                    evaluatePlay = evaluateBotPlay(nextPlayer, selectedPileIndex, selected.get());
+                }
+            }
             
-            if (selected.isPresent() && isLegalEffectPlay(selected.get(), selectedPileIndex)) {
+            if (evaluatePlay) {
                 selected.get().setVerso(false);
                 selected.get().transfer(piles[selectedPileIndex], true);
 
