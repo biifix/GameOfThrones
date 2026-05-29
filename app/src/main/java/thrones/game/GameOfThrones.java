@@ -36,6 +36,7 @@ public class GameOfThrones extends CardGame {
 
     static Random random = new Random(30006);
 
+    private static final int NUM_PLAYERS = 4;
     private boolean isAuto = false;
     public final int nbPlayers = 4;
     private final int nbHeartCardsPerPlayer = 3;
@@ -122,7 +123,7 @@ public class GameOfThrones extends CardGame {
         return null;
     }
 
-    private Map<Integer, Consideration> playerConsiderations = new HashMap<>();
+    private Map<Integer, ArrayList<Consideration>> playerConsiderations = new HashMap<>();
     private ArrayList<Consideration> readPlayerConsiderations(Properties properties, int playeridx) {
         ArrayList<Consideration> considerations = new ArrayList<>();
         String playerConfig = properties.getProperty("players." + playeridx);
@@ -241,7 +242,7 @@ public class GameOfThrones extends CardGame {
         }
     }
 
-    private boolean[] smartMinimalPlay = new boolean[numPlayers];
+    private boolean[] smartMinimalPlay = new boolean[NUM_PLAYERS];
     private int getOpponentPileIndex(int playerIndex) {
         if (getTeamPileIndex(playerIndex) == Pile.NORTH.ordinal()) {
             return Pile.SOUTH.ordinal();
@@ -251,7 +252,7 @@ public class GameOfThrones extends CardGame {
     }
 
     private Card getTopCard(int pileIndex) {
-        Hand pile = piles.get(pileIndex);
+        Hand pile = piles[pileIndex];
         if (pile == null || pile.isEmpty()) {
             return null;
         }
@@ -264,7 +265,7 @@ public class GameOfThrones extends CardGame {
         if (topCard == null || card == null) {
             return false;
         }
-        return getCardRank(card) == getCardRank(topCard);
+        return getCardRankValue(card) == getCardRankValue(topCard);
     }
 
     private int getEffectValue(Card card, int pileIndex) {
@@ -277,7 +278,7 @@ public class GameOfThrones extends CardGame {
 
     private AffectedAttribute getAffectedAttribute(int pileIndex) {
         Hand pile = piles[pileIndex];
-        if (pile == null || oile.isEmpty) {
+        if (pile == null || pile.isEmpty()) {
             return AffectedAttribute.NONE;
         }
         List<Card> cards = pile.getCardList();
@@ -291,7 +292,7 @@ public class GameOfThrones extends CardGame {
             } else if (suit.isDefence()) {
                 prevAffectedAttribute = AffectedAttribute.DEFENCE;
             } else if (suit.isMagic()) {
-                prevAffectedAttribute = AffectedAttribute.MAGIC;
+                prevAffectedAttribute = AffectedAttribute.NONE;
             }
         }
         return prevAffectedAttribute;
@@ -302,7 +303,7 @@ public class GameOfThrones extends CardGame {
         Hand currentHand = hands[playerIndex];
         List<Card> cards = currentHand.getCardList();
         Map<Integer, Integer> rankCount = new HashMap<>();
-        for (Card card; cards) {
+        for (Card card: cards) {
             int rankValue = getCardRankValue(card);
             int count = rankCount.getOrDefault(rankValue, 0);
             rankCount.put(rankValue, count + 1);
@@ -331,11 +332,11 @@ public class GameOfThrones extends CardGame {
         int ownPileIndex = getTeamPileIndex(playerIndex);
         int opponentPileIndex = getOpponentPileIndex(playerIndex);
         
-        int ownRanks = calculatePileRanks(ownPileIndex);
-        int opponentRanks = calculatePileRanks(opponentPileIndex);
+        int[] ownRanks = calculatePileRanks(ownPileIndex);
+        int[] opponentRanks = calculatePileRanks(opponentPileIndex);
 
-        int ownAttack = ownRanks(ATTACK_RANK_INDEX);
-        int opponentDefence = opponentRanks(DEFENCE_RANK_INDEX);
+        int ownAttack = ownRanks[ATTACK_RANK_INDEX];
+        int opponentDefence = opponentRanks[DEFENCE_RANK_INDEX];
 
         return ownAttack <= opponentDefence;
     }
@@ -344,11 +345,11 @@ public class GameOfThrones extends CardGame {
         int ownPileIndex = getTeamPileIndex(playerIndex);
         int opponentPileIndex = getOpponentPileIndex(playerIndex);
         
-        int ownRanks = calculatePileRanks(ownPileIndex);
-        int opponentRanks = calculatePileRanks(opponentPileIndex);
+        int[] ownRanks = calculatePileRanks(ownPileIndex);
+        int[] opponentRanks = calculatePileRanks(opponentPileIndex);
 
-        int ownDefence = ownRanks(DEFENCE_RANK_INDEX);
-        int opponentAttack = opponentRanks(ATTACK_RANK_INDEX);
+        int ownDefence = ownRanks[DEFENCE_RANK_INDEX];
+        int opponentAttack = opponentRanks[ATTACK_RANK_INDEX];
 
         return ownDefence <= opponentAttack;
     }
@@ -370,7 +371,7 @@ public class GameOfThrones extends CardGame {
             if (suit.isDefence() && isLegalEffectPlay(card, ownPileIndex)) {
                 int effect = getEffectValue(card, ownPileIndex);
                 int priority = 1;
-                if (effect>bestEffect||(effect == bestEffect && priority>bestPriority)) {
+                if (effect > bestEffect || (effect == bestEffect && priority > bestPriority)) {
                     bestEffect = effect;
                     bestPriority = priority;
                     bestCard = card;
@@ -378,15 +379,15 @@ public class GameOfThrones extends CardGame {
                 }
             }
             if (suit.isMagic() && isLegalEffectPlay(card, opponentPileIndex)) {
-                AffectedAttribute affectedAttribute = getPrevAffectedAttribute(opponentPileIndex);
-                if(affectedAttribute == AffectedAttribute.ATTACK) {
+                AffectedAttribute affectedAttribute = getAffectedAttribute(opponentPileIndex);
+                if (affectedAttribute == AffectedAttribute.ATTACK) {
                     int effect = getEffectValue(card, opponentPileIndex);
                     int priority = 2;
                     if (effect > bestEffect || (effect == bestEffect && priority > bestPriority)) {
-                    bestEffect = effect;
-                    bestPriority = priority;
-                    bestCard = card;
-                    bestPileIndex = opponentPileIndex;
+                        bestEffect = effect;
+                        bestPriority = priority;
+                        bestCard = card;
+                        bestPileIndex = opponentPileIndex;
                     }
                 }
             }
@@ -411,7 +412,7 @@ public class GameOfThrones extends CardGame {
             if (suit.isAttack() && isLegalEffectPlay(card, ownPileIndex)) {
                 int effect = getEffectValue(card, ownPileIndex);
                 int priority = 1;
-                if (effect>bestEffect||(effect == bestEffect && priority>bestPriority)) {
+                if (effect > bestEffect || (effect == bestEffect && priority > bestPriority)) {
                     bestEffect = effect;
                     bestPriority = priority;
                     bestCard = card;
@@ -419,15 +420,15 @@ public class GameOfThrones extends CardGame {
                 }
             }
             if (suit.isMagic() && isLegalEffectPlay(card, opponentPileIndex)) {
-                AffectedAttribute affectedAttribute = getPrevAffectedAttribute(opponentPileIndex);
-                if(affectedAttribute == AffectedAttribute.DEFENCE) {
+                AffectedAttribute affectedAttribute = getAffectedAttribute(opponentPileIndex);
+                if (affectedAttribute == AffectedAttribute.DEFENCE) {
                     int effect = getEffectValue(card, opponentPileIndex);
                     int priority = 2;
                     if (effect > bestEffect || (effect == bestEffect && priority > bestPriority)) {
-                    bestEffect = effect;
-                    bestPriority = priority;
-                    bestCard = card;
-                    bestPileIndex = opponentPileIndex;
+                        bestEffect = effect;
+                        bestPriority = priority;
+                        bestCard = card;
+                        bestPileIndex = opponentPileIndex;
                     }
                 }
             }
@@ -435,7 +436,7 @@ public class GameOfThrones extends CardGame {
         return new SmartBot(bestCard, bestPileIndex);
     }
 
-    private SmartMove selectSmartMinimalMove(int playerIndex) {
+    private SmartBot selectSmartMinimalMove(int playerIndex) {
         int ownPileIndex = getTeamPileIndex(playerIndex);
         int opponentPileIndex = getOpponentPileIndex(playerIndex);
 
@@ -452,7 +453,7 @@ public class GameOfThrones extends CardGame {
             if (suit.isMagic() && isLegalEffectPlay(card, ownPileIndex)) {
                 int effect = getEffectValue(card, ownPileIndex);
                 int priority = 3;
-                if (effect>bestEffect||(effect == bestEffect && priority>bestPriority)) {
+                if (effect < bestEffect || (effect == bestEffect && priority > bestPriority)) {
                     bestEffect = effect;
                     bestPriority = priority;
                     bestCard = card;
@@ -460,28 +461,28 @@ public class GameOfThrones extends CardGame {
                 }
             }
             if (suit.isAttack() && isLegalEffectPlay(card, opponentPileIndex)) {
-                AffectedAttribute affectedAttribute = getPrevAffectedAttribute(opponentPileIndex);
-                if(affectedAttribute == AffectedAttribute.DEFENCE) {
+                AffectedAttribute affectedAttribute = getAffectedAttribute(opponentPileIndex);
+                if (affectedAttribute == AffectedAttribute.DEFENCE) {
                     int effect = getEffectValue(card, opponentPileIndex);
                     int priority = 2;
-                    if (effect > bestEffect || (effect == bestEffect && priority > bestPriority)) {
-                    bestEffect = effect;
-                    bestPriority = priority;
-                    bestCard = card;
-                    bestPileIndex = opponentPileIndex;
+                    if (effect < bestEffect || (effect == bestEffect && priority > bestPriority)) {
+                        bestEffect = effect;
+                        bestPriority = priority;
+                        bestCard = card;
+                        bestPileIndex = opponentPileIndex;
                     }
                 }
             }
             if (suit.isDefence() && isLegalEffectPlay(card, ownPileIndex)) {
-                AffectedAttribute affectedAttribute = getPrevAffectedAttribute(ownPileIndex);
-                if(affectedAttribute == AffectedAttribute.ATTACK) {
+                AffectedAttribute affectedAttribute = getAffectedAttribute(ownPileIndex);
+                if (affectedAttribute == AffectedAttribute.ATTACK) {
                     int effect = getEffectValue(card, ownPileIndex);
                     int priority = 1;
-                    if (effect > bestEffect || (effect == bestEffect && priority > bestPriority)) {
-                    bestEffect = effect;
-                    bestPriority = priority;
-                    bestCard = card;
-                    bestPileIndex = ownPileIndex;
+                    if (effect < bestEffect || (effect == bestEffect && priority > bestPriority)) {
+                        bestEffect = effect;
+                        bestPriority = priority;
+                        bestCard = card;
+                        bestPileIndex = ownPileIndex;
                     }
                 }
             }
@@ -489,28 +490,26 @@ public class GameOfThrones extends CardGame {
         return new SmartBot(bestCard, bestPileIndex);
     }
         
-    private SmartMove selectSmartEffectMove(int playerIndex) {
+    private SmartBot selectSmartEffectMove(int playerIndex) {
         SmartBot move;
         if (smartMinimalPlay[playerIndex]) {
             move = selectSmartMinimalMove(playerIndex);
-            smartMinimalPlay(playerIndex) = false;
+            smartMinimalPlay[playerIndex] = false;
             return move;
         }
         if (isSmartAttackMode(playerIndex)) {
             move = selectSmartAttackMove(playerIndex);
-        
         } else if (isSmartDefenceMode(playerIndex)){
             move = selectSmartDefenceMove(playerIndex);
         } else {
-        move.card = null;
+            move = new SmartBot(null, NON_SELECTION_VALUE);
         }
 
-        if (!move) {
+        if (move == null || move.card == null) {
             smartMinimalPlay[playerIndex] = true;
-            
         }
         return move;
-         
+    }
 
 
         
@@ -1049,11 +1048,11 @@ public class GameOfThrones extends CardGame {
                 if (playerTypes[playerIndex] == PlayerType.HUMAN) {
                     waitForCorrectSuit(playerIndex, true);
                 } else if (playerTypes[playerIndex] == PlayerType.SMART) {
-                    Card smartCharacter = selectSmartCharacterCard(playerIndex);
+                    Card smartCharacter = selectSmartCharacter(playerIndex);
                     if (smartCharacter == null) {
                         selected = Optional.empty();
                     } else {
-                        selected = Optional.of(smartCharacter)
+                        selected = Optional.of(smartCharacter);
                     }
                 } else {
                     pickACorrectSuit(playerIndex, true);
@@ -1108,8 +1107,8 @@ public class GameOfThrones extends CardGame {
 
                 } 
                 else if (playerTypes[nextPlayer] == PlayerType.SMART) {
-                    SmartBot smartMove = selectSmartMove(nextPlayer);
-                    if (smartMove.card == null) {
+                    SmartBot smartMove = selectSmartEffectMove(nextPlayer);
+                    if (smartMove == null || smartMove.card == null) {
                         selected = Optional.empty();
                         selectedPileIndex = NON_SELECTION_VALUE;
                     } else {
