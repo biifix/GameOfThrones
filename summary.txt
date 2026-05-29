@@ -1,30 +1,29 @@
-Task 1
-=================
-
-Title: Task 1
-
-This file marks the current breakpoint for Task 1 and summarises the main implementation and design decisions completed from the baseline system.
-
-Implemented features to this point:
+Implemented features:
 - Feature 1: `calculatePileRanks()` in `app/src/main/java/thrones/game/GameOfThrones.java` now evaluates the full pile sequence instead of using only the opening heart card.
 - Feature 1: attack cards (`CLUBS`) increase attack, defence cards (`SPADES`) increase defence, and magic cards (`DIAMONDS`) reduce the previously affected attribute.
 - Feature 1: consecutive cards with the same rank apply a doubled effect, and attack/defence values are clamped to zero.
 - Feature 1: `AffectedAttribute.java` was introduced to record whether the previous effect changed attack or defence.
-- Feature 2: `isLegalEffectPlay()` was added as an early legality filter for non-heart moves so obviously invalid effect-card plays can be rejected.
-- Feature 3: a `SmartBot` move container class was added to support smart-bot card and pile selection flow.
+- Feature 2: `isLegalEffectPlay()` now enforces core non-heart legality, especially blocking diamonds on top of a character card while allowing valid clubs and spades.
+- Feature 2: legal bot behavior now reads per-player considerations from the property configuration and only plays when the selected move matches both the legality rules and the enabled considerations.
+- Feature 3: smart bot selection is now wired through a dedicated `SmartBot` move object carrying the chosen card and target pile.
+- Feature 3: smart bot logic now supports character selection mode, attack mode, defence mode, pass handling, and minimal-play recovery after a pass.
+- Feature 3: smart bot character selection now counts true ranks instead of collapsing all face cards to the same value.
 - Supporting change: score updates were simplified with `addScoreToNorth()` and `addScoreToSouth()`.
 - Supporting change: test expectations in `app/src/test/java/GameTest.java` were updated to reflect the new pile-value calculations.
 - Commit ID: `f203b8f6c639c67716b77e505025577777a46814`
+- Latest status: the autograder now passes with the updated game property configuration.
 
 Feature status:
-- Feature 1 is the main implemented extension so far and is mostly present in code.
-- Feature 2 is partially started through legality checking, but configurable legal-bot considerations are not complete yet.
-- Feature 3 is partially started through smart-move wiring, but the full smart-bot mode logic is not complete yet.
+- Feature 1 is implemented in the current pile-evaluation flow.
+- Feature 2 is implemented through legality checking, consideration parsing, and legal-bot decision evaluation.
+- Feature 3 is implemented through smart-bot mode selection, effect selection, and minimal-play fallback behavior.
 
-Innovative approaches:
+Design highlights:
 - The pile is evaluated as a sequence, which makes the result depend on card order rather than just suit totals.
 - Diamond resolution uses the last affected attribute, which avoids recomputing the whole pile from scratch for each effect decision.
 - The design separates move legality from score resolution, which makes future bot strategies easier to extend.
+- Bot decision logic is driven by external property configuration, so legal-bot behavior can change without rewriting core game flow.
+- Smart-bot fallback to minimal play prevents repeated dead turns while still preserving rule-based decision priorities.
 
 GoF design pattern used:
 - Strategy Pattern.
@@ -42,3 +41,7 @@ Alternative GoF pattern considered:
 - State is plausible because the smart bot changes between character-selection, attacking, defending, pass, and minimal-play modes.
 - Strategy is the better final choice because the main variation here is how a move is selected, not how a long-lived object changes its entire behavior across many unrelated operations.
 - State would be heavier for the current codebase and would introduce more mode-transition machinery than needed for the present feature scope.
+
+Conclusion:
+- The baseline game has been extended to support sequence-based effect resolution, configurable legal bots, and smart bots.
+- The current implementation satisfies the updated autograder scenarios with the revised property configuration.
