@@ -240,6 +240,282 @@ public class GameOfThrones extends CardGame {
                 return false;
         }
     }
+
+    private boolean[] smartMinimalPlay = new boolean[numPlayers];
+    private int getOpponentPileIndex(int playerIndex) {
+        if (getTeamPileIndex(playerIndex) == Pile.NORTH.ordinal()) {
+            return Pile.SOUTH.ordinal();
+        } else {
+            return Pile.NORTH.ordinal();
+        }
+    }
+
+    private Card getTopCard(int pileIndex) {
+        Hand pile = piles.get(pileIndex);
+        if (pile == null || pile.isEmpty()) {
+            return null;
+        }
+        List<Card> cards = pile.getCardList();
+        return cards.get(cards.size() - 1);
+    }
+
+    private boolean isSameEffect(Card card, int pileIndex) {
+        Card topCard = getTopCard(pileIndex);
+        if (topCard == null || card == null) {
+            return false;
+        }
+        return getCardRank(card) == getCardRank(topCard);
+    }
+
+    private int getEffectValue(Card card, int pileIndex) {
+        int value = getCardRankValue(card);
+        if (isSameEffect(card, pileIndex)) {
+            value = value * 2;
+        }
+        return value;
+    }
+
+    private AffectedAttribute getAffectedAttribute(int pileIndex) {
+        Hand pile = piles[pileIndex];
+        if (pile == null || oile.isEmpty) {
+            return AffectedAttribute.NONE;
+        }
+        List<Card> cards = pile.getCardList();
+        AffectedAttribute prevAffectedAttribute = AffectedAttribute.NONE;
+        
+        for (int i =0; i<cards.size(); i++) {
+            Card card = cards.get(i);
+            Suit suit = (Suit) card.getSuit();
+            if (suit.isAttack()) {
+                prevAffectedAttribute = AffectedAttribute.ATTACK;
+            } else if (suit.isDefence()) {
+                prevAffectedAttribute = AffectedAttribute.DEFENCE;
+            } else if (suit.isMagic()) {
+                prevAffectedAttribute = AffectedAttribute.MAGIC;
+            }
+        }
+        return prevAffectedAttribute;
+    }
+        
+    // select character mode
+    private Card selectSmartCharacter(int playerIndex) {
+        Hand currentHand = hands[playerIndex];
+        List<Card> cards = currentHand.getCardList();
+        Map<Integer, Integer> rankCount = new HashMap<>();
+        for (Card card; cards) {
+            int rankValue = getCardRankValue(card);
+            int count = rankCount.getOrDefault(rankValue, 0);
+            rankCount.put(rankValue, count + 1);
+        }
+        Card bestHeart = null;
+        int bestCount = -1;
+        int bestRankValue = -1;
+        for (Card card : cards) {
+            Suit suit = (Suit) card.getSuit();
+            if (!suit.isCharacter()) {
+                continue;
+            }
+            int rankValue = getCardRankValue(card);
+            int count = rankCount.get(rankValue);
+
+            if (count > bestCount || (count == bestCount && rankValue > bestRankValue)) {
+                bestCount = count;
+                bestRankValue = rankValue;
+                bestHeart = card;
+            }
+        }
+        return bestHeart;
+    }
+
+    private boolean isSmartAttackMode(int playerIndex) {
+        int ownPileIndex = getTeamPileIndex(playerIndex);
+        int opponentPileIndex = getOpponentPileIndex(playerIndex);
+        
+        int ownRanks = calculatePileRanks(ownPileIndex);
+        int opponentRanks = calculatePileRanks(opponentPileIndex);
+
+        int ownAttack = ownRanks(ATTACK_RANK_INDEX);
+        int opponentDefence = opponentRanks(DEFENCE_RANK_INDEX);
+
+        return ownAttack <= opponentDefence;
+    }
+
+    private boolean isSmartDefenceMode(int playerIndex) {
+        int ownPileIndex = getTeamPileIndex(playerIndex);
+        int opponentPileIndex = getOpponentPileIndex(playerIndex);
+        
+        int ownRanks = calculatePileRanks(ownPileIndex);
+        int opponentRanks = calculatePileRanks(opponentPileIndex);
+
+        int ownDefence = ownRanks(DEFENCE_RANK_INDEX);
+        int opponentAttack = opponentRanks(ATTACK_RANK_INDEX);
+
+        return ownDefence <= opponentAttack;
+    }
+
+    private SmartBot selectSmartDefenceMove(int playerIndex) {
+        int ownPileIndex = getTeamPileIndex(playerIndex);
+        int opponentPileIndex = getOpponentPileIndex(playerIndex);
+
+        Card bestCard = null;
+        int bestPileIndex = NON_SELECTION_VALUE;
+        int bestEffect = -1;
+        int bestPriority = -1;
+
+        for (Card card: hands[playerIndex].getCardList()) {
+            Suit suit = (Suit) card.getSuit();
+            if (suit.isCharacter()) {
+                continue;
+            }
+            if (suit.isDefence() && isLegalEffectPlay(card, ownPileIndex)) {
+                int effect = getEffectValue(card, ownPileIndex);
+                int priority = 1;
+                if (effect>bestEffect||(effect == bestEffect && priority>bestPriority)) {
+                    bestEffect = effect;
+                    bestPriority = priority;
+                    bestCard = card;
+                    bestPileIndex = ownPileIndex;
+                }
+            }
+            if (suit.isMagic() && isLegalEffectPlay(card, opponentPileIndex)) {
+                AffectedAttribute affectedAttribute = getPrevAffectedAttribute(opponentPileIndex);
+                if(affectedAttribute == AffectedAttribute.ATTACK) {
+                    int effect = getEffectValue(card, opponentPileIndex);
+                    int priority = 2;
+                    if (effect > bestEffect || (effect == bestEffect && priority > bestPriority)) {
+                    bestEffect = effect;
+                    bestPriority = priority;
+                    bestCard = card;
+                    bestPileIndex = opponentPileIndex;
+                    }
+                }
+            }
+        }
+        return new SmartBot(bestCard, bestPileIndex);
+    }
+
+    private SmartBot selectSmartAttackMove(int playerIndex) {
+        int ownPileIndex = getTeamPileIndex(playerIndex);
+        int opponentPileIndex = getOpponentPileIndex(playerIndex);
+
+        Card bestCard = null;
+        int bestPileIndex = NON_SELECTION_VALUE;
+        int bestEffect = -1;
+        int bestPriority = -1;
+
+        for (Card card: hands[playerIndex].getCardList()) {
+            Suit suit = (Suit) card.getSuit();
+            if (suit.isCharacter()) {
+                continue;
+            }
+            if (suit.isAttack() && isLegalEffectPlay(card, ownPileIndex)) {
+                int effect = getEffectValue(card, ownPileIndex);
+                int priority = 1;
+                if (effect>bestEffect||(effect == bestEffect && priority>bestPriority)) {
+                    bestEffect = effect;
+                    bestPriority = priority;
+                    bestCard = card;
+                    bestPileIndex = ownPileIndex;
+                }
+            }
+            if (suit.isMagic() && isLegalEffectPlay(card, opponentPileIndex)) {
+                AffectedAttribute affectedAttribute = getPrevAffectedAttribute(opponentPileIndex);
+                if(affectedAttribute == AffectedAttribute.DEFENCE) {
+                    int effect = getEffectValue(card, opponentPileIndex);
+                    int priority = 2;
+                    if (effect > bestEffect || (effect == bestEffect && priority > bestPriority)) {
+                    bestEffect = effect;
+                    bestPriority = priority;
+                    bestCard = card;
+                    bestPileIndex = opponentPileIndex;
+                    }
+                }
+            }
+        }
+        return new SmartBot(bestCard, bestPileIndex);
+    }
+
+    private SmartMove selectSmartMinimalMove(int playerIndex) {
+        int ownPileIndex = getTeamPileIndex(playerIndex);
+        int opponentPileIndex = getOpponentPileIndex(playerIndex);
+
+        Card bestCard = null;
+        int bestPileIndex = NON_SELECTION_VALUE;
+        int bestEffect = Integer.MAX_VALUE;
+        int bestPriority = -1;
+
+        for (Card card: hands[playerIndex].getCardList()) {
+            Suit suit = (Suit) card.getSuit();
+            if (suit.isCharacter()) {
+                continue;
+            }
+            if (suit.isMagic() && isLegalEffectPlay(card, ownPileIndex)) {
+                int effect = getEffectValue(card, ownPileIndex);
+                int priority = 3;
+                if (effect>bestEffect||(effect == bestEffect && priority>bestPriority)) {
+                    bestEffect = effect;
+                    bestPriority = priority;
+                    bestCard = card;
+                    bestPileIndex = ownPileIndex;
+                }
+            }
+            if (suit.isAttack() && isLegalEffectPlay(card, opponentPileIndex)) {
+                AffectedAttribute affectedAttribute = getPrevAffectedAttribute(opponentPileIndex);
+                if(affectedAttribute == AffectedAttribute.DEFENCE) {
+                    int effect = getEffectValue(card, opponentPileIndex);
+                    int priority = 2;
+                    if (effect > bestEffect || (effect == bestEffect && priority > bestPriority)) {
+                    bestEffect = effect;
+                    bestPriority = priority;
+                    bestCard = card;
+                    bestPileIndex = opponentPileIndex;
+                    }
+                }
+            }
+            if (suit.isDefence() && isLegalEffectPlay(card, ownPileIndex)) {
+                AffectedAttribute affectedAttribute = getPrevAffectedAttribute(ownPileIndex);
+                if(affectedAttribute == AffectedAttribute.ATTACK) {
+                    int effect = getEffectValue(card, ownPileIndex);
+                    int priority = 1;
+                    if (effect > bestEffect || (effect == bestEffect && priority > bestPriority)) {
+                    bestEffect = effect;
+                    bestPriority = priority;
+                    bestCard = card;
+                    bestPileIndex = ownPileIndex;
+                    }
+                }
+            }
+        }
+        return new SmartBot(bestCard, bestPileIndex);
+    }
+        
+    private SmartMove selectSmartEffectMove(int playerIndex) {
+        SmartBot move;
+        if (smartMinimalPlay[playerIndex]) {
+            move = selectSmartMinimalMove(playerIndex);
+            smartMinimalPlay(playerIndex) = false;
+            return move;
+        }
+        if (isSmartAttackMode(playerIndex)) {
+            move = selectSmartAttackMove(playerIndex);
+        
+        } else if (isSmartDefenceMode(playerIndex)){
+            move = selectSmartDefenceMove(playerIndex);
+        } else {
+        move.card = null;
+        }
+
+        if (!move) {
+            smartMinimalPlay[playerIndex] = true;
+            
+        }
+        return move;
+         
+
+
+        
+        
+    
     
 
     /**
@@ -760,13 +1036,28 @@ public class GameOfThrones extends CardGame {
                 }
             }
 
+            // if (selected.isEmpty()) {
+            //     pileIndex = i % 2;
+            //     if (playerTypes[playerIndex] == PlayerType.HUMAN) {
+            //         waitForCorrectSuit(playerIndex, true);
+            //     } else {
+            //         pickACorrectSuit(playerIndex, true);
+            //     }
+            // }
             if (selected.isEmpty()) {
-                pileIndex = i % 2;
+                pileIndex = getTeamPileIndex(playerIndex);
                 if (playerTypes[playerIndex] == PlayerType.HUMAN) {
                     waitForCorrectSuit(playerIndex, true);
+                } else if (playerTypes[playerIndex] == PlayerType.SMART) {
+                    Card smartCharacter = selectSmartCharacterCard(playerIndex);
+                    if (smartCharacter == null) {
+                        selected = Optional.empty();
+                    } else {
+                        selected = Optional.of(smartCharacter)
+                    }
                 } else {
                     pickACorrectSuit(playerIndex, true);
-                }
+                }  
             }
 
             assert selected.isPresent() : " Pass returned on selection of character.";
@@ -809,27 +1100,52 @@ public class GameOfThrones extends CardGame {
                 setStatusText("Player" + nextPlayer + " select a non-Heart card to play.");
                 if (playerTypes[nextPlayer] == PlayerType.HUMAN) {
                     waitForCorrectSuit(nextPlayer, false);
-                } else {
-                    pickACorrectSuit(nextPlayer, false);
-                }
+                    if (selected.isPresent()) {
+                        setStatusText("Selected: " + canonical(selected.get()) + ". Player" + nextPlayer + " select a pile to play the card.");
+                        waitForPileSelection();   
+                    }
 
-                if (selected.isPresent()) {
-                    setStatusText("Selected: " + canonical(selected.get()) + ". Player" + nextPlayer + " select a pile to play the card.");
-                    if (playerTypes[nextPlayer] == PlayerType.HUMAN) {
-                        waitForPileSelection();
+
+                } 
+                else if (playerTypes[nextPlayer] == PlayerType.SMART) {
+                    SmartBot smartMove = selectSmartMove(nextPlayer);
+                    if (smartMove.card == null) {
+                        selected = Optional.empty();
+                        selectedPileIndex = NON_SELECTION_VALUE;
                     } else {
+                        selected = Optional.of(smartMove.card);
+                        selectedPileIndex = smartMove.pileIndex;
+                        setStatusText("Selected: " + canonical(selected.get()) + ". Player" + nextPlayer + " select a pile " + selectedPileIndex + " to play the card.");
+                    }
+                }
+                else {
+                    pickACorrectSuit(nextPlayer, false);
+                    if (selected.isPresent()) {
+                        setStatusText("Selected: " + canonical(selected.get()) + ". Player" + nextPlayer + " select a pile to play the card.");
                         selectRandomPile();
                     }
-                } else {
-                    System.out.println(". Player" + nextPlayer + "Pass.");
-                    setStatusText("Pass.");
                 }
+
+                // if (selected.isPresent()) {
+                //     setStatusText("Selected: " + canonical(selected.get()) + ". Player" + nextPlayer + " select a pile to play the card.");
+                //     if (playerTypes[nextPlayer] == PlayerType.HUMAN) {
+                //         waitForPileSelection();
+                //     } else {
+                //         selectRandomPile();
+                //     }
+                // } else {
+                //     System.out.println(". Player" + nextPlayer + "Pass.");
+                //     setStatusText("Pass.");
+                // }
             }
 
             // evaluate the play
             boolean evaluatePlay = false;
             if (selected.isPresent()) {
                 if (playerTypes[nextPlayer] == PlayerType.HUMAN) {
+                    evaluatePlay = isLegalEffectPlay(selected.get(), selectedPileIndex);
+                } 
+                else if (playerTypes[nextPlayer] == PlayerType.SMART) {
                     evaluatePlay = isLegalEffectPlay(selected.get(), selectedPileIndex);
                 } else {
                     evaluatePlay = evaluateBotPlay(nextPlayer, selectedPileIndex, selected.get());
@@ -899,6 +1215,8 @@ public class GameOfThrones extends CardGame {
     private void executeAPlay() {
         resetPile();
         resetIndexes();
+
+        Arrays.fill(smartMinimalPlay, false);
 
         playHeartForCharacters();
         playTurns();
