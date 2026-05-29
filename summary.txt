@@ -3,20 +3,42 @@ Task 1
 
 Title: Task 1
 
-This file marks the current breakpoint for Task 1 and summarises the key implementation points completed from the initial baseline.
+This file marks the current breakpoint for Task 1 and summarises the main implementation and design decisions completed from the baseline system.
 
-Implemented key points:
-- Feature 1 work has been added in `app/src/main/java/thrones/game/GameOfThrones.java`.
-- `calculatePileRanks()` no longer uses only the opening heart rank; it now processes the full pile sequence.
-- Attack cards (`CLUBS`) increase attack, defence cards (`SPADES`) increase defence, and magic cards (`DIAMONDS`) reduce the last affected attribute.
-- Consecutive cards with the same rank apply a doubled effect.
-- Attack and defence values are clamped so they do not fall below zero.
-- `AffectedAttribute.java` was added to track whether the previous effect changed attack or defence.
-- `isLegalEffectPlay()` was introduced to block some illegal non-heart plays on piles that do not yet have a valid affected attribute context.
-- Score updates were refactored into `addScoreToNorth()` and `addScoreToSouth()` helper methods.
-- Test expectations in `app/src/test/java/GameTest.java` were updated to reflect the new pile value calculations.
-- Commit ID: f203b8f6c639c67716b77e505025577777a46814
+Implemented features to this point:
+- Feature 1: `calculatePileRanks()` in `app/src/main/java/thrones/game/GameOfThrones.java` now evaluates the full pile sequence instead of using only the opening heart card.
+- Feature 1: attack cards (`CLUBS`) increase attack, defence cards (`SPADES`) increase defence, and magic cards (`DIAMONDS`) reduce the previously affected attribute.
+- Feature 1: consecutive cards with the same rank apply a doubled effect, and attack/defence values are clamped to zero.
+- Feature 1: `AffectedAttribute.java` was introduced to record whether the previous effect changed attack or defence.
+- Feature 2: `isLegalEffectPlay()` was added as an early legality filter for non-heart moves so obviously invalid effect-card plays can be rejected.
+- Feature 3: a `SmartBot` move container class was added to support smart-bot card and pile selection flow.
+- Supporting change: score updates were simplified with `addScoreToNorth()` and `addScoreToSouth()`.
+- Supporting change: test expectations in `app/src/test/java/GameTest.java` were updated to reflect the new pile-value calculations.
+- Commit ID: `f203b8f6c639c67716b77e505025577777a46814`
 
-Current status:
-- Feature 1 is partially/mostly implemented in code and is the main completed extension so far.
-- Feature 2 and Feature 3 are not fully implemented yet; bot logic still needs further work to match the specification.
+Feature status:
+- Feature 1 is the main implemented extension so far and is mostly present in code.
+- Feature 2 is partially started through legality checking, but configurable legal-bot considerations are not complete yet.
+- Feature 3 is partially started through smart-move wiring, but the full smart-bot mode logic is not complete yet.
+
+Innovative approaches:
+- The pile is evaluated as a sequence, which makes the result depend on card order rather than just suit totals.
+- Diamond resolution uses the last affected attribute, which avoids recomputing the whole pile from scratch for each effect decision.
+- The design separates move legality from score resolution, which makes future bot strategies easier to extend.
+
+GoF design pattern used:
+- Strategy Pattern.
+- The bot decision logic is naturally suited to Strategy because legal-bot and smart-bot behavior are different move-selection strategies operating over the same game state.
+- A legal bot can use a rule-based strategy, while a smart bot can use an optimisation-based strategy without changing the rest of the turn-processing code.
+
+GRASP justification:
+- Information Expert: `GameOfThrones` currently holds the hand, piles, and score state, so it is the natural place for pile evaluation and turn resolution.
+- Low Coupling: separating move-choice behavior into bot strategies reduces direct dependence between turn execution and bot rules.
+- High Cohesion: pile scoring, move legality, and bot decision logic are distinct responsibilities and should remain in focused methods or classes.
+- Polymorphism: different bot types should vary by behavior through different strategy implementations instead of large conditional blocks.
+
+Alternative GoF pattern considered:
+- State Pattern.
+- State is plausible because the smart bot changes between character-selection, attacking, defending, pass, and minimal-play modes.
+- Strategy is the better final choice because the main variation here is how a move is selected, not how a long-lived object changes its entire behavior across many unrelated operations.
+- State would be heavier for the current codebase and would introduce more mode-transition machinery than needed for the present feature scope.
